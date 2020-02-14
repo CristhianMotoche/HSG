@@ -14,15 +14,20 @@
 
 import           Control.Monad.Identity
 import           Data.Kind              (Type)
+import           Data.Maybe
 import           Data.Proxy
 import           Debug.Trace
 import           Fcf
 import           GHC.TypeLits           hiding (type (+))
+import           System.Random
 import           Unsafe.Coerce
 
 
 data OpenSum (f :: k -> Type) (ts :: [k]) where
-  UnsafeOpenSum :: Int -> f t -> OpenSum f ts
+  UnsafeOpenSum
+    :: Int
+    -> f t
+    -> OpenSum f ts
 
 
 type FindElem (key :: k) (ts :: [k]) =
@@ -58,28 +63,43 @@ match fn (UnsafeOpenSum _ t) = fn t
 
 
 weaken :: OpenSum f ts -> OpenSum f (x ': ts)
-weaken (UnsafeOpenSum n t) = UnsafeOpenSum (n + 1) t
+weaken (UnsafeOpenSum n f) = UnsafeOpenSum (n + 1) f
 
 
-os :: OpenSum Identity '[Int]
+{- EXAMPLES -}
+
+simpleOs :: OpenSum Identity '[Bool, Int]
+simpleOs = inj (Identity True)
+
+os :: OpenSum Identity '[String, Char, Bool, Int]
 os = inj (Identity (3 :: Int))
 
-val :: Maybe (Identity Int)
+val :: Maybe (Identity Bool)
 val = prj os
 
-decomposedOS :: Either (Identity Int) (OpenSum Identity '[Int])
-decomposedOS = decompose weakenOS
+decOS :: Either (Identity (IO String)) (OpenSum Identity '[String, Char, Bool, Int])
+decOS = decompose weakenOS
 
-weakenOS :: OpenSum Identity '[Int, Int]
+weakenOS :: OpenSum Identity '[IO String, String, Char, Bool, Int]
 weakenOS = weaken os
 
-val2 :: Maybe (Identity Int)
-val2 =
-  case decomposedOS of
-    Left elem  -> traceShow "Left" $ Just elem
-    Right rest -> traceShow "Right" $ prj rest
+bazz :: OpenSum Identity '[IO String, String, Char, Bool, Int] -> Identity Int
+bazz myOS = fromMaybe (Identity (0 :: Int)) $ prj myOS
 
-val3 :: Int
-val3 = match runIdentity os
+manyValues :: Int -> OpenSum Identity '[Int, Char, String]
+manyValues 0 = inj (Identity (10 :: Int))
+manyValues 1 = inj (Identity 'A')
+manyValues 2 = inj (Identity "Haskell is crazy")
+manyValues _ = inj (Identity "Nope")
 
-main = undefined
+main = do
+  val <- randomRIO (0, 4) :: IO Int
+  let result = manyValues val
+      fromOSmatch = match f result
+      f :: Identity val -> Int
+      f (Identity _) = 3
+      fromOSprj = prj result :: Maybe (Identity String)
+  print val
+  print fromOSmatch
+  print fromOSprj
+  print $ bazz ((weaken . weaken . weaken) simpleOs)
