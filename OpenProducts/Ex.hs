@@ -110,7 +110,7 @@ delete _ (OpenProduct v) =
 -- UPSERT
 
 type UpsertElem (key :: Symbol) (t :: k) (ts :: [(Symbol, k)]) = Case
-  [ 'True --> UpdateElem key t ts
+  [ 'True --> Eval (UpdateElem key t ts)
   , 'False --> '(key, t) ': ts
   ]
   (Eval (Elem key (Eval (Map Fst ts))))
@@ -118,15 +118,42 @@ type UpsertElem (key :: Symbol) (t :: k) (ts :: [(Symbol, k)]) = Case
 type FindMaybeElem (key :: Symbol) (ts :: [(Symbol, k)]) =
   Eval (FindIndex (TyEq key <=< Fst) ts)
 
+{-
+HINT:
+Type family to compute a MAYBE NAT
+corresponding to the index of the key in the list of
+types, if it exists. Use class instances to lower this
+kind to the term-level, and then pattern match on it
+to implement upsert.
+-}
+
+class FindUpsertElem (a :: Maybe Nat) where
+  upsertElem :: Maybe Int
+
+instance FindUpsertElem 'Nothing where
+  upsertElem = Nothing
+
+instance (KnownNat int) => FindUpsertElem ('Just int) where
+  upsertElem = Just (fromIntegral $ natVal (Proxy @int))
+
+
 -- findElem :: forall key ts. KnownNat (FindElem key ts) => Int
-findMaybeElem :: forall key ts . (FindMaybeElem key ts)
-findMaybeElem = fromIntegral . natVal <$> Proxy @(FindMaybeElem key ts)
+--findMaybeElem :: forall a key ts . (Eval ((Fcf.<$>) KnownNat (FindMaybeElem key ts))) => Maybe a
+findMaybeElem :: forall key ts . FindUpsertElem (FindMaybeElem key ts) => Maybe Int
+findMaybeElem = upsertElem @(FindMaybeElem key ts)
 
 upsert
   :: forall key ts f t
-  . KnownNat (FindElem key ts)
+  . FindUpsertElem (FindMaybeElem key ts)
     => Key key
     -> f t
     -> OpenProduct f ts
     -> OpenProduct f (Eval (UpsertElem key t ts))
-upsert _ ft (OpenProduct v) = undefined
+upsert dictKey ft op@(OpenProduct v) =
+  case findMaybeElem @key @ts of
+    Just idx ->
+      OpenProduct $ v V.// [(idx, Any ft)]
+--      update dictKey ft op
+    Nothing  ->
+      OpenProduct $ V.cons (Any ft) v
+--      insert dictKey ft op
