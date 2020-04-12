@@ -1,15 +1,17 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ConstraintKinds     #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE ExplicitNamespaces  #-}
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE PolyKinds           #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeOperators       #-}
+{-# LANGUAGE AllowAmbiguousTypes  #-}
+{-# LANGUAGE ConstraintKinds      #-}
+{-# LANGUAGE DataKinds            #-}
+{-# LANGUAGE ExplicitNamespaces   #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE GADTs                #-}
+{-# LANGUAGE PolyKinds            #-}
+{-# LANGUAGE RankNTypes           #-}
+{-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TypeApplications     #-}
+{-# LANGUAGE TypeFamilies         #-}
+{-# LANGUAGE TypeOperators        #-}
+{-# LANGUAGE UndecidableInstances #-}
 
 
 import           Control.Monad.Identity
@@ -92,6 +94,42 @@ manyValues 1 = inj (Identity 'A')
 manyValues 2 = inj (Identity "Haskell is crazy")
 manyValues _ = inj (Identity "Nope")
 
+
+-- Chapter 12: Custom Errors
+
+type ErrorMsg (f :: k -> Type) (t :: k) (ts :: [k]) = (
+  'Text "Attempted to call `friendlyPrj' to produce a `"
+  ':<>: 'ShowType (f t)
+  ':<>: 'Text "'."
+  ':$$: 'Text "But the OpenSum can only contain one, of:"
+  ':$$: 'Text " "
+  ':<>: 'ShowType ts
+  )
+
+type family FriendlyFindElem (f :: k -> Type) (t :: k) (ts :: [k]) where
+  FriendlyFindElem f t ts =
+    FromMaybe (TypeError (ErrorMsg f t ts)) =<< FindIndex (TyEq t) ts
+
+-- NOTES:
+-- 1) It's necessary to define the FCF as a type family
+-- (rather than a type synonym) so that GHC doesn’t emit the error immediately.
+
+type FriendlyMember f t ts = KnownNat (Eval (FriendlyFindElem f t ts))
+
+friendlyFindElem :: forall f t ts. FriendlyMember f t ts => Int
+friendlyFindElem = fromIntegral . natVal $ Proxy @(Eval (FriendlyFindElem f t ts))
+
+friendlyPrj
+  :: forall f t ts. FriendlyMember f t ts
+  => OpenSum f ts
+  -> Maybe (f t)
+friendlyPrj (UnsafeOpenSum i ft)=
+  if i == friendlyFindElem @f @t @ts
+     then Just $ unsafeCoerce ft
+     else Nothing
+
+
+-- MAIN
 main = do
   val <- randomRIO (0, 4) :: IO Int
   let result = manyValues val

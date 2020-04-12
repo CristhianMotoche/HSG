@@ -16,14 +16,15 @@
 {-# LANGUAGE UndecidableInstances  #-}
 
 module OpenProducts where
-import           Data.Kind            (Constraint, Type)
-import           Data.Proxy           (Proxy (..))
-import qualified Data.Vector          as V
-import           Fcf                  hiding (Any)
+import           Control.Monad.Identity
+import           Data.Kind              (Constraint, Type)
+import           Data.Proxy             (Proxy (..))
+import qualified Data.Vector            as V
+import           Fcf                    hiding (Any)
 import           Fcf.Data.List
-import           GHC.OverloadedLabels (IsLabel (..))
+import           GHC.OverloadedLabels   (IsLabel (..))
 import           GHC.TypeLits
-import           Unsafe.Coerce        (unsafeCoerce)
+import           Unsafe.Coerce          (unsafeCoerce)
 
 data Any (f :: k -> Type) where
   Any :: ft -> Any f
@@ -33,8 +34,11 @@ data OpenProduct (f :: k -> Type) (ts :: [(Symbol, k)]) where
     :: V.Vector (Any f)
     -> OpenProduct f ts
 
-nil :: OpenProduct f '[]
+nil :: OpenProduct Identity '[]
 nil = OpenProduct V.empty
+
+op :: OpenProduct Identity '[ '("foo", Int) ]
+op = insert (undefined :: Key "foo") (Identity (3 :: Int)) nil
 
 data Key (key :: Symbol) = Key
 -- insert
@@ -157,3 +161,50 @@ upsert dictKey ft op@(OpenProduct v) =
     Nothing  ->
       OpenProduct $ V.cons (Any ft) v
 --      insert dictKey ft op
+
+
+-- Chapter 12. Custom Errors
+
+type family RequireUniqueKey (result :: Bool) (key :: Symbol) (t :: k) (ts :: [(Symbol, k)]) :: Constraint where
+  RequireUniqueKey 'True key t ts = ()
+  RequireUniqueKey 'False key t ts =
+    TypeError (
+      'Text "Attempting to add a field named '"
+      ':<>: 'Text key
+      ':<>: 'Text "' with type "
+      ':<>: 'ShowType t
+      ':<>: 'Text " to an OpenProduct."
+      ':$$: 'Text "But the OpenProduct already has field `"
+      ':<>: 'Text key
+      ':<>: 'Text "' with type "
+      ':<>: 'ShowType (LookupType key ts)
+      ':$$: 'Text "Consider using `update' "
+      ':<>: 'Text "instead of `insert'."
+    )
+
+friendlyInsert
+  :: RequireUniqueKey (Eval (UniqueKey key ts)) key t ts
+  => Key key
+  -> f t
+  -> OpenProduct f ts
+  -> OpenProduct f ('(key, t) ': ts)
+friendlyInsert _ ft (OpenProduct v) =
+  OpenProduct $ V.cons (Any ft) v
+
+-- Exercise 12-i Add helpful type errors to OpenProduct’s update and delete functions.
+
+-- Exercise 12-ii Write a closed type family of kind [K] → ERRORMESSAGE
+-- that pretty prints a list. Use it to improve the error
+-- message from FriendlyFindElem.
+
+-- Exercise 12-iii
+-- See what happens when you directly add a TypeError
+-- to the context of a function (eg. foo :: TypeError ... => a).
+-- What happens? Do you know why?
+
+{-
+
+foo :: (TypeError ('Text "LOL! What are you doing?")) => String
+foo = "foo"
+
+-}
