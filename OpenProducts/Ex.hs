@@ -38,9 +38,13 @@ nil :: OpenProduct Identity '[]
 nil = OpenProduct V.empty
 
 op :: OpenProduct Identity '[ '("foo", Int) ]
-op = insert (undefined :: Key "foo") (Identity (3 :: Int)) nil
+op = insert #foo (Identity (3 :: Int)) nil
 
 data Key (key :: Symbol) = Key
+
+instance (key ~ key') => IsLabel key (Key key') where
+  fromLabel = Key
+
 -- insert
   -- :: Key key
   -- -> ft
@@ -139,7 +143,6 @@ instance FindUpsertElem 'Nothing where
 
 instance (KnownNat int) => FindUpsertElem ('Just int) where
   upsertElem = Just (fromIntegral $ natVal (Proxy @int))
-
 
 -- findElem :: forall key ts. KnownNat (FindElem key ts) => Int
 --findMaybeElem :: forall a key ts . (Eval ((Fcf.<$>) KnownNat (FindMaybeElem key ts))) => Maybe a
