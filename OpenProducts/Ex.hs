@@ -64,8 +64,15 @@ insert
   -> OpenProduct f ('(key, t) ': ts)
 insert _ ft (OpenProduct v) = OpenProduct $ V.cons (Any ft) v
 
-type FindElem (key :: Symbol) (ts :: [(Symbol, k)]) =
-  Eval (FromMaybe Stuck =<< FindIndex (TyEq key <=< Fst) ts)
+type UpdateError key ts =
+  (Text "Wait! "
+  :<>: ShowType key
+  :<>: Text " not present in "
+  :<>: ShowType ts)
+
+type family FindElem (key :: Symbol) (ts :: [(Symbol, k)]) where
+  FindElem key ts =
+    Eval (FromMaybe (TypeError (UpdateError key ts)) =<< FindIndex (TyEq key <=< Fst) ts)
 
 findElem :: forall key ts. KnownNat (FindElem key ts) => Int
 findElem = fromIntegral . natVal $ Proxy @(FindElem key ts)
@@ -87,6 +94,11 @@ get _ (OpenProduct v) =
     unAny (Any a) = unsafeCoerce a
 
 -- UPDATE
+
+--type family RequireJustElem (findElem :: Maybe Nat) :: Constraint where
+--  RequireJustElem 'Nothing = TypeError UpdateError
+--  RequireJustElem ('Just _1) = KnownNat _1
+--    Eval (FromMaybe (TypeError UpdateError) =<< FindIndex (TyEq key <=< Fst) ts)
 
 update
   :: forall key ts f t

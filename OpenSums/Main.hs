@@ -103,12 +103,17 @@ type ErrorMsg (f :: k -> Type) (t :: k) (ts :: [k]) = (
   ':<>: 'Text "'."
   ':$$: 'Text "But the OpenSum can only contain one, of:"
   ':$$: 'Text " "
-  ':<>: 'ShowType ts
+  ':<>: 'ShowType (ErrorList ts)
   )
 
 type family FriendlyFindElem (f :: k -> Type) (t :: k) (ts :: [k]) where
   FriendlyFindElem f t ts =
     FromMaybe (TypeError (ErrorMsg f t ts)) =<< FindIndex (TyEq t) ts
+
+
+type family ErrorList (ts :: [k]) :: ErrorMessage where
+  ErrorList '[] = Text ""
+  ErrorList (e ': es)= 'ShowType e :<>: ErrorList es
 
 -- NOTES:
 -- 1) It's necessary to define the FCF as a type family
