@@ -35,6 +35,13 @@ data Person = Person
     }
     deriving (Generic, Show)
 
+  {-
+     MORE EXAMPLES:
+
+       CREATE TABLE person (name Text, ...)
+
+  -}
+
 {-
 
 1) gschema doesn't reference `a`
@@ -108,6 +115,10 @@ instance (KnownSymbol nm, KnownSymbol (ToJSONType a))
 
 -- 1. This instance says that the property nm is required.
 -- 2.
+--
+-- Record selector (?):
+-- name :: Person -> String
+-- name $ Person "name" 12 Nothing []
 
 -- If we have a product of fields, we need to merge them together.
 
@@ -122,10 +133,19 @@ instance (TypeError ('Err.Text "JSON Schema does not support sum types"))
     gschema = error "JSON Schema does not support sum types"
     {-# INLINE gschema #-}
 
+data Foo = Bar | Baz { foo :: Int } deriving (Generic)
+
+{-
+   Foo => datatype => D
+   Bar, Baz => constructors => C
+   foo => record selector => S
+-}
+
 -- `M1 C` - metadata for data constructors.
 instance GSchema a => GSchema (M1 C _1 a) where
   gschema = gschema @a
   {-# INLINE gschema #-}
+
 
 -- `M1 D` - type constructors
 instance (GSchema a, KnownSymbol nm)
