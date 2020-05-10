@@ -7,10 +7,13 @@
 {-# LANGUAGE OverloadedStrings    #-}
 {-# LANGUAGE RankNTypes           #-}
 {-# LANGUAGE ScopedTypeVariables  #-}
+{-# LANGUAGE TemplateHaskell      #-}
 {-# LANGUAGE TypeApplications     #-}
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE TypeOperators        #-}
 {-# LANGUAGE UndecidableInstances #-}
+
+{-# OPTIONS_GHC -O -fplugin Test.Inspection.Plugin #-}
 
 module JSONSchema where
 
@@ -25,6 +28,7 @@ import           Data.Vector                (fromList)
 import           GHC.Generics
 import           GHC.TypeLits
 import qualified GHC.TypeLits               as Err
+import           Test.Inspection
 
 -- Let's generate a JSON Schema for `Person`
 data Person = Person
@@ -133,7 +137,11 @@ instance (TypeError ('Err.Text "JSON Schema does not support sum types"))
     gschema = error "JSON Schema does not support sum types"
     {-# INLINE gschema #-}
 
-data Foo = Bar | Baz { foo :: Int } deriving (Generic)
+data Foo = Bar
+    | Baz
+    { foo :: Int
+    }
+    deriving (Generic)
 
 {-
    Foo => datatype => D
@@ -215,3 +223,9 @@ instance {-# OVERLAPPING #-} KnownSymbol nm
     pure . makePropertyObj @nm
          $ makeTypeObj @String
   {-# INLINE gschema #-}
+
+-- Performance testing
+mySchema :: Value
+mySchema = schema @Person
+
+inspect $ hasNoGenerics 'mySchema
