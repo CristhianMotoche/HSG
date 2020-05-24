@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeApplications           #-}
 
 
+module Ix where
+
 import           Control.Monad.Indexed
 import           Data.Coerce
 
