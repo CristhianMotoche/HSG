@@ -15,7 +15,7 @@ import qualified GHC.TypeLits                as TL
 import           Ix
 import           Language.Haskell.DoNotation
 import           Prelude                     hiding (Monad (..), pure, (+))
-import           System.IO                   hiding (Handle, openFile)
+import           System.IO                   hiding (Handle, openFile, hFileSize, hGetLine)
 import qualified System.IO                   as SIO
 
 {-
@@ -105,9 +105,12 @@ runLinear = coerce
    (2) It’s safe to run a Linear if its final state has no open files
 -}
 
+etcPasswd :: Linear s ('LinearState next open) ('LinearState (next TL.+ 1) (next ': open)) (Handle s next)
 etcPasswd = openFile "/etc/passwd" ReadMode
 
---result = runLinear (etcPasswd >>= closeFile)
+result :: IO ()
+result = runLinear (etcPasswd >>= closeFile)
+
 -- These operations throw a type error:
 --
 -- Can't simply open a handle
@@ -129,3 +132,21 @@ etcPasswd = openFile "/etc/passwd" ReadMode
 --  handle <- etcPasswd
 --  closeFile etcPasswd
 --  pure handle
+
+
+hFileSize :: Eval (IsOpen key open) ~ 'True => Handle s key -> Linear s ('LinearState next open) ('LinearState next open) Integer
+hFileSize = coerce $ SIO.hFileSize
+
+hGetLine :: Eval (IsOpen key open) ~ 'True => Handle s key -> Linear s ('LinearState next open) ('LinearState next open) String
+hGetLine = coerce $ SIO.hGetLine
+
+printPasswd :: IO ()
+printPasswd = do
+  (fileSize, fileContent) <- runLinear $ do
+    h <- etcPasswd
+    int <- hFileSize h
+    str <- hGetLine h
+    closeFile h
+    return (int, str)
+  print fileSize
+  putStrLn fileContent
