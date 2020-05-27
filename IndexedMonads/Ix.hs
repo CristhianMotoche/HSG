@@ -21,7 +21,6 @@ Useful for:
 In the rest of the chapter we'll look at:
 - how to statically enforce resource allocation linearity.
 
-
 -}
 
 {-
@@ -30,7 +29,7 @@ class IxApplicative m => IxMonad m where
 
 i j k => “state” of the monad at different times
 
-An indexed monadic action m i j a is one that
+An indexed monadic action `m i j a` is one that
 - produces an `a`,
 - with precondition `i`
 - and post-condition `j`
@@ -65,6 +64,9 @@ newtype Ix m i j a = Ix
 {-
    Indexed monads have their own indexed-version of the standard
    typeclass hierarchy. Let's define that for `Ix`:
+
+   Functor => "Pointed" => Applicative => Monad
+   IxFunctor => IxPointed => IxApplicative => IxMonad
 -}
 
 instance Functor m => IxFunctor (Ix m) where
@@ -86,7 +88,7 @@ instance Applicative m => IxApplicative (Ix m) where
   iap = coerce $ (<*>) @m @a @b -- (2)
 
 {-
-   (1) We need to euse InstanceSigs in order to capture `a` and `b` with
+   (1) We need to euse `InstanceSigs` in order to capture `a` and `b` with
    `ScopedTypeVariables`.
    (2) Now, `<*>` is trivially coerced.
 

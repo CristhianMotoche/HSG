@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds                  #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE PolyKinds                  #-}
@@ -9,13 +10,14 @@
 
 import           Control.Monad.Indexed
 import           Data.Coerce
+import Control.DeepSeq (deepseq)
 import           Fcf
 import           GHC.TypeLits                (Nat)
 import qualified GHC.TypeLits                as TL
 import           Ix
 import           Language.Haskell.DoNotation
 import           Prelude                     hiding (Monad (..), pure, (+))
-import           System.IO                   hiding (Handle, openFile, hFileSize, hGetLine)
+import           System.IO                   hiding (Handle, openFile, hFileSize, hGetLine, hGetContents)
 import qualified System.IO                   as SIO
 
 {-
@@ -24,7 +26,7 @@ import qualified System.IO                   as SIO
    2) And close them exactly ONCE
 
    How?
-   1) Tack whether a file handle is open or closed
+   1) Track whether a file handle is open or closed
    2) We'll keep the open ones in a list and we'll remove then once closed
    3) We'll use a increasing NAT to keep unique kyes for the file handles
 -}
@@ -60,7 +62,7 @@ openFile = coerce SIO.openFile
 {-
   (1) It can be used for any `next` and `open`
   (2) the postconditions of `openFile` is that `next` is incremented
-  (3) and insert `next` into the open set
+  (3) and insert `next` into the `open` set
 -}
 
 newtype Handle s key = Handle
@@ -87,7 +89,7 @@ closeFile = coerce SIO.hClose
 
 {-
    (1) We don't need to decrement the handle count since `next` is used only
-       to generate a unque NAT for any new opened handle
+       to generate a unique NAT for any new opened handle
 -}
 
 
@@ -105,11 +107,13 @@ runLinear = coerce
    (2) It’s safe to run a Linear if its final state has no open files
 -}
 
-etcPasswd :: Linear s ('LinearState next open) ('LinearState (next TL.+ 1) (next ': open)) (Handle s next)
+etcPasswd :: Linear s ('LinearState next open)
+                      ('LinearState (next TL.+ 1) (next ': open))
+                      (Handle s next)
 etcPasswd = openFile "/etc/passwd" ReadMode
 
-result :: IO ()
-result = runLinear (etcPasswd >>= closeFile)
+--result :: IO ()
+--result = runLinear (etcPasswd >>= closeFile)
 
 -- These operations throw a type error:
 --
@@ -130,22 +134,36 @@ result = runLinear (etcPasswd >>= closeFile)
 --
 --result = runLinear $ do
 --  handle <- etcPasswd
---  closeFile etcPasswd
+--  closeFile handle
 --  pure handle
 
 
-hFileSize :: Eval (IsOpen key open) ~ 'True => Handle s key -> Linear s ('LinearState next open) ('LinearState next open) Integer
-hFileSize = coerce $ SIO.hFileSize
+hFileSize ::
+  Eval (IsOpen key open) ~ 'True =>
+  Handle s key ->
+  Linear s ('LinearState next open) ('LinearState next open) Integer
+hFileSize = coerce SIO.hFileSize
 
-hGetLine :: Eval (IsOpen key open) ~ 'True => Handle s key -> Linear s ('LinearState next open) ('LinearState next open) String
-hGetLine = coerce $ SIO.hGetLine
+hGetLine ::
+  Eval (IsOpen key open) ~ 'True =>
+  Handle s key ->
+  Linear s ('LinearState next open) ('LinearState next open) String
+hGetLine = coerce SIO.hGetLine
+
+hGetContents ::
+  Eval (IsOpen key open) ~ 'True =>
+  Handle s key ->
+  Linear s ('LinearState next open) ('LinearState next open) String
+hGetContents = coerce SIO.hGetContents
 
 printPasswd :: IO ()
 printPasswd = do
+  -- IO
   (fileSize, fileContent) <- runLinear $ do
+    -- IxMonad
     h <- etcPasswd
     int <- hFileSize h
-    str <- hGetLine h
+    !str <- hGetContents h
     closeFile h
     return (int, str)
   print fileSize
