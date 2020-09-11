@@ -82,7 +82,8 @@ toSBool :: Bool -> SomeSBool
 toSBool True  = SomeSBool STrue
 toSBool False = SomeSBool SFalse
 
-main :: IO ()
-main = do
+
+run :: IO ()
+run = do
   print $ withSomeSBool ( toSBool True ) fromSBool
   print $ withSomeSBool ( toSBool False ) fromSBool
