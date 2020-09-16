@@ -30,14 +30,14 @@ class Monad (LoggingMonad b) => MonadLogging (b :: Bool) where
 -- The 'False case only ignore attempts to log messages
 instance MonadLogging 'False where
   type LoggingMonad 'False = IO
-  logMsg _ = pure ()
-  runLogging = id
+  logMsg _ = pure () -- :: String -> IO ()
+  runLogging = id -- :: IO a -> IO a
 
 -- In the 'True case we introduce a WriterT [String] over the monad stack
 instance MonadLogging 'True where
   type LoggingMonad 'True = WriterT [String] IO
-  logMsg msg = tell [msg]
-  runLogging mw = do
+  logMsg msg = tell [msg] -- :: String -> WriterT [String] IO
+  runLogging mw = do -- WriterT [String] IO a -> IO a
     (a, msgs) <- runWriterT mw
     mapM_ putStrLn msgs
     return a
@@ -48,10 +48,9 @@ program = do
   logMsg "hello world"
   pure ()
 
-
 main :: IO ()
 main = do
-  bool <- read <$> getLine
+  bool <- read <$> getLine -- True | False ==> 'True | 'False ?
   withSomeSBool (toSBool bool) $
     \(_ :: SBool b) ->
       runLogging @b program

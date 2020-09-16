@@ -42,6 +42,10 @@ module SBool where
 
   * 'singletons' => isomorphismos between terms and values
 
+  KIND => Type | Constraint | Arrow Kinds
+  TYPE => Bool, 'False, 'True, etc.
+  TERMS => False, True
+
   data () = () ## () => Unit Type
 
    UT has one value ()
@@ -67,7 +71,7 @@ fromSBool SFalse = False
 
 -- Term 2 Type
 -- STrue 'True /= SBool 'False
--- we cannot write the other side of the polymorphism directly
+-- we cannot write the other side of the isomorphism directly
 
 data SomeSBool where
   SomeSBool :: SBool b -> SomeSBool
@@ -85,5 +89,5 @@ toSBool False = SomeSBool SFalse
 
 run :: IO ()
 run = do
-  print $ withSomeSBool ( toSBool True ) fromSBool
-  print $ withSomeSBool ( toSBool False ) fromSBool
+  print $ withSomeSBool (toSBool True) fromSBool
+  print $ withSomeSBool (toSBool False) fromSBool
