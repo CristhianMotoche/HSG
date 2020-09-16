@@ -11,9 +11,9 @@
 
 
 import           Control.Monad.Trans.Writer
-import           SBool
---import           Data.Constraint            (Dict (..))
+import           Data.Constraint            (Dict (..))
 import           Data.Kind                  (Type)
+import           SBool
 
 
 class Monad (LoggingMonad b) => MonadLogging (b :: Bool) where
@@ -48,9 +48,27 @@ program = do
   logMsg "hello world"
   pure ()
 
+-- The following code does not work,
+-- even though it's total and theoretically fine, because:
+--  - typeclasses are implemented in GHC as implicitly passed variables
+--  - GHC doesn't know the type of `b`
+
+{-
 main :: IO ()
 main = do
   bool <- read <$> getLine -- True | False ==> 'True | 'False ?
   withSomeSBool (toSBool bool) $
     \(_ :: SBool b) ->
       runLogging @b program
+-}
+
+dict :: ( c 'True, c 'False ) => SBool b -> Dict (c b)
+dict STrue  = Dict
+dict SFalse = Dict
+
+main :: IO ()
+main = do
+  bool <- read <$> getLine -- True | False ==> 'True | 'False ?
+  withSomeSBool (toSBool bool) $ \(sb :: SBool b) ->
+    case dict @MonadLogging sb of
+      Dict -> runLogging @b program
