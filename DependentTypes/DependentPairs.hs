@@ -24,11 +24,13 @@ import           Data.Kind               (Type)
 import           Data.Maybe              (mapMaybe)
 import           Data.Singletons.Prelude
 import           Data.Singletons.TH
+import           Machinery               hiding (Demote, Sing, SingKind,
+                                          fromSing, sing)
 
 
 -- Sigma types => Dependent Pairs
 --  - They generalize arbitrarily-deeply nested Either types
---    - Either (Either (Either (Either a b) c) d) e ?
+--    - Either (Either (Either (Either (...) b) c) d) e ?
 --  - Propositions as types
 --    - existential quantifier ∃
 
@@ -36,7 +38,7 @@ import           Data.Singletons.TH
 --  - existential singleton
 --  - type indexed by that singleton
 --
---  - type families + singletons ?
+--  - type families + singletons ? XXX
 
 data Sigma (f :: k -> Type) where
   Sigma :: Sing a -> f a -> Sigma f
