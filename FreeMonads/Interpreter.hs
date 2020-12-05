@@ -33,7 +33,8 @@ done
 
 We can create a "cheat" to "hold" the same type
 
-  data Fix f = Fix (f (Fix f))
+  data Fix f = Fix (f (Fix f)) =>
+    - a stream of _functors_ that will only end when it gets to the `Done` constructor.
 
 => Fix (Output 'A' (Fix Done))              :: Fix (Toy Char)
 
@@ -48,8 +49,9 @@ the caller catch it and resume:
 
 data FixE f e = Fix (f (FixE f e)) | Throw e
 
+-- (>>=) :: Monad m => m a -> (a -> m b) -> m b
 catch :: (Functor f) => FixE f e1 -> (e1 -> FixE f e2) -> FixE f e2
-catch (Fix x) f   = Fix (fmap (flip catch f) x)
+catch (Fix x) f   = Fix (fmap (`catch` f) x)
 catch (Throw e) f = f e
 
 
