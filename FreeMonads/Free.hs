@@ -62,7 +62,7 @@ done     = liftF  Done
 subroutine :: Free (Toy Char) ()
 subroutine = output 'A'
 
-program :: Free (Toy Char) r -- r comes from `done`, phantom type?
+program :: Free (Toy Char) Int -- r comes from `done`, phantom type?
 program = do
   subroutine
   bell
@@ -81,7 +81,7 @@ showProgram (Pure r)            = "return " ++ show r ++ "\n"
 
 -- and print it:
 
-printProgram = putStr $ showProgram (program :: Free (Toy Char) ())
+printProgram = putStr $ showProgram (program :: Free (Toy Char) Int)
 
 -- showProgram is our first interpreter! Our pretty printer interpreter!
 
@@ -115,4 +115,7 @@ main = do
 -- assert execWriter (interpretTest program) == ["OUTPUT", "BELL", "DONE"]
 
 interpretTest :: Free (Toy b) r -> Writer [String] ()
-interpretTest = undefined
+interpretTest (Free (Output b x)) = tell ["OUTPUT"] >> interpretTest x
+interpretTest (Free (Bell     x)) = tell ["BELL"] >> interpretTest x
+interpretTest (Free  Done       ) = tell ["DONE"]
+interpretTest (Pure r)            = tell []

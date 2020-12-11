@@ -33,10 +33,17 @@ done
 
 We can create a "cheat" to "hold" the same type
 
+  data Cheat f = Cheat (f (Cheat f)) => We already have that defined as:
+
   data Fix f = Fix (f (Fix f)) =>
     - a stream of _functors_ that will only end when it gets to the `Done` constructor.
 
 => Fix (Output 'A' (Fix Done))              :: Fix (Toy Char)
+
+output 1
+output 'a'
+bell
+done
 
 => Fix (Bell (Fix (Output 'A' (Fix Done)))) :: Fix (Toy Char)
 
